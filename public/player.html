@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>강의 플레이어 · eduPLAY</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0f14; --surface:#161820; --surface2:#1e2029; --surface3:#252731;
+  --border:#2e3040; --accent:#4f8cff; --accent2:#7c5cfc; --ag:rgba(79,140,255,0.13);
+  --text:#e8eaf0; --text2:#9ea3b8; --text3:#5c6278; --green:#3dd68c; --red:#ff5f6d;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+/* TOPBAR */
+.topbar{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:12px;flex-shrink:0}
+.logo{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:var(--accent);white-space:nowrap}
+.logo em{color:var(--text3);font-style:normal;font-weight:400}
+.top-title{flex:1;font-size:13px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-title strong{color:var(--text)}
+.btn{padding:6px 12px;border-radius:7px;font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s;border:1px solid var(--border);background:var(--surface2);color:var(--text2);display:inline-flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0}
+.btn:hover{background:var(--surface3);color:var(--text);border-color:var(--accent)}
+.btn-done{border-color:var(--green);color:var(--green);background:rgba(61,214,140,.08)}
+.btn-done:hover{background:rgba(61,214,140,.18)}
+
+/* LAYOUT */
+.layout{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:285px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .25s ease}
+.sidebar.collapsed{width:0}
+.sb-hd{padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.sb-hd h3{font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text3)}
+.sb-hd span{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+.sb-search{padding:8px 11px;border-bottom:1px solid var(--border);flex-shrink:0}
+.sb-search input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);font-family:inherit;outline:none;transition:border-color .15s}
+.sb-search input:focus{border-color:var(--accent)}
+.sb-search input::placeholder{color:var(--text3)}
+.tree{flex:1;overflow-y:auto;padding:6px 0}
+.tree::-webkit-scrollbar{width:4px}
+.tree::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* TREE */
+.t-cat-hd{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;user-select:none;transition:background .1s}
+.t-cat-hd:hover,.t-sub-hd:hover,.t-vid:hover{background:var(--surface2)}
+.t-arrow{width:14px;height:14px;color:var(--text3);transition:transform .18s;flex-shrink:0}
+.t-arrow svg{width:100%;height:100%}
+.t-cat.open .t-cat-hd .t-arrow,.t-sub.open .t-sub-hd .t-arrow{transform:rotate(90deg)}
+.t-icon{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.t-label{flex:1;font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-count{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;flex-shrink:0}
+.t-cat-body{display:none}.t-cat.open .t-cat-body{display:block}
+.t-sub-hd{display:flex;align-items:center;gap:7px;padding:6px 12px 6px 28px;cursor:pointer;user-select:none;transition:background .1s}
+.t-sub-label{flex:1;font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-sub-count{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+.t-sub-body{display:none}.t-sub.open .t-sub-body{display:block}
+.t-vid{display:flex;align-items:center;gap:7px;padding:6px 12px 6px 44px;cursor:pointer;transition:background .1s}
+.t-vid.active{background:var(--ag);border-right:2px solid var(--accent)}
+.t-vid.active .t-vid-title{color:var(--accent)}
+.t-dot{width:5px;height:5px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .2s}
+.t-vid.active .t-dot{background:var(--accent)}
+.t-vid.watched .t-dot{background:var(--green)}
+.t-vid-info{flex:1;min-width:0}
+.t-vid-title{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-vid-meta{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:2px}
+
+/* CONTENT */
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* VIDEO */
+.video-wrap{position:relative;background:#000;flex-shrink:0}
+.video-wrap video{width:100%;display:block;max-height:56vh;object-fit:contain}
+.video-empty{width:100%;aspect-ratio:16/9;max-height:56vh;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.ve-icon{font-size:48px;opacity:.18}
+.ve-text{font-size:14px;opacity:.35;color:var(--text)}
+
+/* PDF OVERLAY */
+.pdf-overlay{position:absolute;bottom:14px;right:14px;display:flex;flex-direction:column-reverse;gap:7px;z-index:20;pointer-events:none;max-width:270px}
+.pdf-btn{display:flex;align-items:center;gap:9px;background:rgba(10,11,17,.92);border:1px solid var(--accent2);border-radius:9px;padding:8px 12px;cursor:pointer;backdrop-filter:blur(10px);pointer-events:all;animation:pIn .32s cubic-bezier(.34,1.56,.64,1);transition:background .15s,transform .15s}
+.pdf-btn:hover{background:rgba(124,92,252,.22);transform:translateX(-3px)}
+@keyframes pIn{from{opacity:0;transform:translateX(18px) scale(.94)}to{opacity:1;transform:translateX(0) scale(1)}}
+.pb-icon{width:26px;height:26px;background:linear-gradient(135deg,var(--red),#ffa36c);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.pb-name{font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.pb-label{font-size:10px;color:var(--text3);margin-top:1px}
+
+/* SEEKBAR */
+.seekbar-wrap{background:var(--surface);border-top:1px solid var(--border);padding:7px 15px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.seekbar{flex:1;height:4px;background:var(--surface3);border-radius:2px;cursor:pointer;position:relative}
+.seekbar:hover{height:6px;margin-top:-1px}
+.sb-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;pointer-events:none;transition:width .08s}
+.pdf-marker{position:absolute;top:-2px;height:8px;border-radius:2px;opacity:.55;pointer-events:none;cursor:default}
+.time-lbl{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;white-space:nowrap;min-width:36px}
+.time-lbl.right{text-align:right}
+
+/* INFO PANEL */
+.info-panel{flex:1;overflow-y:auto;background:var(--surface);border-top:1px solid var(--border);min-height:0}
+.info-panel::-webkit-scrollbar{width:4px}
+.info-panel::-webkit-scrollbar-thumb{background:var(--border)}
+.tabs{display:flex;padding:0 16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:5}
+.tab{padding:9px 14px;font-size:12px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;user-select:none}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-pane{display:none;padding:16px}
+.tab-pane.active{display:block}
+.info-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px}
+.info-meta{font-size:12px;color:var(--text3);margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.duration-badge{font-family:'JetBrains Mono',monospace;background:var(--surface2);border:1px solid var(--border);padding:2px 8px;border-radius:5px;font-size:11px;color:var(--accent)}
+.info-desc{font-size:13px;color:var(--text2);line-height:1.7}
+
+/* PDF LIST */
+.pdf-list{display:flex;flex-direction:column;gap:8px}
+.pdf-card{display:flex;align-items:center;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 14px;cursor:pointer;transition:all .15s}
+.pdf-card:hover{border-color:var(--accent2)}
+.pc-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--red),#ffa36c);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.pc-body{flex:1;min-width:0}
+.pc-name{font-size:13px;font-weight:500;color:var(--text)}
+.pc-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.pc-range{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--accent2);background:rgba(124,92,252,.1);border:1px solid rgba(124,92,252,.25);padding:3px 7px;border-radius:5px;white-space:nowrap;flex-shrink:0}
+
+/* NOTES */
+.notes-area{width:100%;min-height:100px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 12px;color:var(--text);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:vertical;line-height:1.6;transition:border-color .15s}
+.notes-area:focus{border-color:var(--accent)}
+.notes-area::placeholder{color:var(--text3)}
+
+/* PDF MODAL */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.mo.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;width:450px;max-width:92vw;overflow:hidden;animation:mIn .2s ease}
+@keyframes mIn{from{opacity:0;transform:scale(.96) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.mo-hd{padding:15px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.mo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--red),#ffa36c);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.mo-title{font-size:14px;font-weight:600;color:var(--text)}
+.mo-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.mo-close{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:17px;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.mo-close:hover{background:var(--surface2);color:var(--text)}
+.mo-body{padding:18px 20px}
+.mo-path{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;font-size:12px;color:var(--accent);font-family:'JetBrains Mono',monospace;word-break:break-all;margin-bottom:14px}
+.mo-actions{display:flex;gap:8px;justify-content:flex-end}
+.btn-prim{background:var(--accent);border:none;color:#fff;font-size:13px;font-weight:600;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:inherit;transition:opacity .15s}
+.btn-prim:hover{opacity:.85}
+.btn-sec{background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:13px;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-sec:hover{background:var(--surface3)}
+
+/* LOADING */
+.loading-bar{height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));position:fixed;top:0;left:0;z-index:9999;transition:width .3s ease;width:0}
+
+/* TOAST */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(70px);background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:13px;color:var(--text);z-index:9999;transition:transform .28s ease;pointer-events:none;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="loading-bar" id="loadingBar"></div>
+
+<div class="topbar">
+  <div class="logo">▶ <em>edu</em>PLAY</div>
+  <div class="top-title" id="topTitle"><span style="color:var(--text3)">강의를 선택하세요</span></div>
+  <button class="btn btn-done" id="watchedBtn" style="display:none" onclick="markWatched()">✓ 완료</button>
+  <button class="btn" onclick="toggleSidebar()">☰ 목록</button>
+  <button class="btn" onclick="window.open('/admin.html','_blank')">⚙ 관리</button>
+</div>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sb-hd">
+      <h3>강의 목록</h3>
+      <span id="totalCount"></span>
+    </div>
+    <div class="sb-search"><input type="text" placeholder="🔍  검색..." id="searchInput" oninput="filterTree(this.value)"></div>
+    <div class="tree" id="treeRoot"></div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- VIDEO -->
+    <div class="video-wrap" id="videoWrap">
+      <div class="video-empty" id="videoEmpty">
+        <div class="ve-icon">🎬</div>
+        <div class="ve-text">좌측에서 강의를 선택하세요</div>
+      </div>
+      <video id="mainVideo" style="display:none" controls></video>
+      <div class="pdf-overlay" id="pdfOverlay"></div>
+    </div>
+
+    <!-- SEEKBAR -->
+    <div class="seekbar-wrap" id="seekbarWrap" style="display:none">
+      <span class="time-lbl" id="timeCur">0:00</span>
+      <div class="seekbar" id="seekbar" onclick="seekClick(event)">
+        <div class="sb-fill" id="sbFill" style="width:0%"></div>
+        <div id="pdfMarkers"></div>
+      </div>
+      <span class="time-lbl right" id="timeTot">0:00</span>
+    </div>
+
+    <!-- INFO -->
+    <div class="info-panel">
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('info',this)">정보</div>
+        <div class="tab" onclick="switchTab('pdfs',this)">📎 자료</div>
+        <div class="tab" onclick="switchTab('notes',this)">✏️ 메모</div>
+      </div>
+      <div class="tab-pane active" id="tab-info">
+        <div class="info-title" id="infoTitle">강의를 선택하세요</div>
+        <div class="info-meta" id="infoMeta"></div>
+        <div class="info-desc"  id="infoDesc"></div>
+      </div>
+      <div class="tab-pane" id="tab-pdfs">
+        <div class="pdf-list" id="pdfList">
+          <div style="font-size:13px;color:var(--text3);text-align:center;padding:24px 0">강의를 선택하면 자료가 나타납니다.</div>
+        </div>
+      </div>
+      <div class="tab-pane" id="tab-notes">
+        <textarea class="notes-area" id="notesArea" placeholder="메모를 남겨보세요..."></textarea>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- PDF MODAL -->
+<div class="mo" id="pdfModal" onclick="if(event.target===this)closeMo()">
+  <div class="modal">
+    <div class="mo-hd">
+      <div class="mo-icon">📄</div>
+      <div><div class="mo-title" id="mTitle"></div><div class="mo-sub" id="mSub"></div></div>
+      <button class="mo-close" onclick="closeMo()">✕</button>
+    </div>
+    <div class="mo-body">
+      <div class="mo-path" id="mPath"></div>
+      <div class="mo-actions">
+        <button class="btn-sec" onclick="closeMo()">취소</button>
+        <button class="btn-prim" onclick="doOpen()">📂 열기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+const WATCHED_KEY = 'eduplay_watched';
+const NOTES_KEY   = 'eduplay_notes';
+
+let data         = [];
+let watchedSet   = new Set();
+let notesMap     = {};
+let currentVid   = null;
+let activePdf    = null;
+let sidebarOpen  = true;
+let activeEvts   = [];   // cleanup fns for video event listeners
+
+// ══════════════════════════════════════════════
+//  LOAD DATA FROM SERVER
+// ══════════════════════════════════════════════
+async function loadData() {
+  setLoading(30);
+  try {
+    data = await fetch('/api/courses').then(r=>r.json());
+  } catch {
+    data = [];
+    showToast('⚠️ 서버에 연결할 수 없습니다');
+  }
+  try { watchedSet = new Set(JSON.parse(localStorage.getItem(WATCHED_KEY)||'[]')); } catch {}
+  try { notesMap   = JSON.parse(localStorage.getItem(NOTES_KEY)||'{}'); } catch {}
+  setLoading(100);
+  buildTree(data);
+  setTimeout(()=>setLoading(0), 400);
+}
+
+// Poll for updates every 15s (so other PCs see changes)
+setInterval(async () => {
+  const fresh = await fetch('/api/courses').then(r=>r.json()).catch(()=>null);
+  if (!fresh) return;
+  data = fresh;
+  buildTree(data);
+}, 15000);
+
+function setLoading(pct) {
+  const bar = document.getElementById('loadingBar');
+  bar.style.width = pct + '%';
+  if (pct >= 100) setTimeout(()=>{ bar.style.width='0'; }, 500);
+}
+
+// ══════════════════════════════════════════════
+//  BUILD TREE
+// ══════════════════════════════════════════════
+function buildTree(srcData) {
+  const root = document.getElementById('treeRoot');
+  root.innerHTML = '';
+  if (!srcData.length) {
+    root.innerHTML = `<div style="padding:24px;text-align:center;font-size:12px;color:var(--text3)">강의가 없습니다.<br>관리 페이지에서 추가하세요.</div>`;
+    return;
+  }
+  const total = srcData.reduce((a,c)=>a+c.subcategories.reduce((b,s)=>b+s.videos.length,0),0);
+  document.getElementById('totalCount').textContent = total + '개';
+  srcData.forEach(cat => root.appendChild(makeCatEl(cat)));
+  // Re-highlight active
+  if (currentVid) {
+    const el = document.getElementById('vi-'+currentVid.id);
+    if (el) el.classList.add('active');
+  }
+}
+
+function makeCatEl(cat) {
+  const total = cat.subcategories.reduce((a,s)=>a+s.videos.length,0);
+  const div = document.createElement('div');
+  div.className = 't-cat open';
+  div.innerHTML = `
+    <div class="t-cat-hd" onclick="this.parentElement.classList.toggle('open')">
+      <div class="t-arrow"><svg viewBox="0 0 16 16" fill="currentColor"><polygon points="6,4 12,8 6,12"/></svg></div>
+      <div class="t-icon" style="background:${cat.color}22;color:${cat.color}">${cat.icon}</div>
+      <div class="t-label">${cat.label}</div>
+      <div class="t-count">${total}</div>
+    </div>
+    <div class="t-cat-body"></div>
+  `;
+  const body = div.querySelector('.t-cat-body');
+  cat.subcategories.forEach(sub => body.appendChild(makeSubEl(sub)));
+  return div;
+}
+
+function makeSubEl(sub) {
+  const div = document.createElement('div');
+  div.className = 't-sub open';
+  div.innerHTML = `
+    <div class="t-sub-hd" onclick="this.parentElement.classList.toggle('open')">
+      <div class="t-arrow"><svg viewBox="0 0 16 16" fill="currentColor"><polygon points="6,4 12,8 6,12"/></svg></div>
+      <div class="t-sub-label">${sub.label}</div>
+      <div class="t-sub-count">${sub.videos.length}</div>
+    </div>
+    <div class="t-sub-body"></div>
+  `;
+  const body = div.querySelector('.t-sub-body');
+  sub.videos.forEach(vid => body.appendChild(makeVidEl(vid)));
+  return div;
+}
+
+function makeVidEl(vid) {
+  const el = document.createElement('div');
+  el.className = 't-vid' + (watchedSet.has(vid.id)?' watched':'');
+  el.id = 'vi-' + vid.id;
+  const pdfCount = (vid.pdfs||[]).length;
+  el.innerHTML = `
+    <div class="t-dot"></div>
+    <div class="t-vid-info">
+      <div class="t-vid-title">${vid.title}</div>
+      <div class="t-vid-meta" id="vm-${vid.id}">${pdfCount ? '📎 '+pdfCount : ''}</div>
+    </div>
+  `;
+  el.onclick = () => playVideo(vid);
+  return el;
+}
+
+// ══════════════════════════════════════════════
+//  PLAY VIDEO
+// ══════════════════════════════════════════════
+function playVideo(vid) {
+  if (currentVid) saveNotes();
+  currentVid = vid;
+
+  document.querySelectorAll('.t-vid').forEach(el=>el.classList.remove('active'));
+  const el = document.getElementById('vi-'+vid.id);
+  if (el) { el.classList.add('active'); el.scrollIntoView({block:'nearest',behavior:'smooth'}); }
+
+  document.getElementById('topTitle').innerHTML = `<strong>${vid.title}</strong>`;
+  document.getElementById('watchedBtn').style.display = '';
+
+  const video = document.getElementById('mainVideo');
+  const empty = document.getElementById('videoEmpty');
+
+  if (vid.src) {
+    video.src = vid.src;
+    video.style.display = 'block';
+    empty.style.display = 'none';
+    video.load();
+    video.play().catch(()=>{});
+    document.getElementById('seekbarWrap').style.display = 'flex';
+  } else {
+    video.pause(); video.removeAttribute('src');
+    video.style.display = 'none';
+    empty.style.display = 'flex';
+    empty.innerHTML = `
+      <div class="ve-icon">🎬</div>
+      <div style="font-size:14px;color:var(--text2);font-weight:600">${vid.title}</div>
+      <div style="font-size:12px;opacity:.35;margin-top:4px;color:var(--text)">관리 페이지에서 영상 경로를 설정하세요</div>
+    `;
+    document.getElementById('seekbarWrap').style.display = 'none';
+  }
+
+  // Info
+  document.getElementById('infoTitle').textContent = vid.title;
+  updateInfoMeta(vid, null); // duration will be set on loadedmetadata
+  document.getElementById('infoDesc').textContent  = vid.desc||'';
+
+  // PDF list
+  renderPdfList(vid);
+
+  // Notes
+  document.getElementById('notesArea').value = notesMap[vid.id]||'';
+
+  // Setup
+  clearEvts();
+  setupVideoEvents(vid);
+}
+
+// ══════════════════════════════════════════════
+//  VIDEO EVENTS + AUTO DURATION
+// ══════════════════════════════════════════════
+function setupVideoEvents(vid) {
+  const video = document.getElementById('mainVideo');
+
+  // ── AUTO DURATION on loadedmetadata ──────────
+  const onMeta = () => {
+    const dur = video.duration;
+    const fmt = fmtT(dur);
+
+    // Update duration badge in info panel
+    updateInfoMeta(vid, fmt);
+
+    // Update sidebar meta
+    const vm = document.getElementById('vm-'+vid.id);
+    if (vm) {
+      const pdfCount = (vid.pdfs||[]).length;
+      vm.textContent = fmt + (pdfCount ? ' · 📎 '+pdfCount : '');
+    }
+
+    // Total time in seekbar
+    document.getElementById('timeTot').textContent = fmt;
+
+    // Draw seekbar markers now that we have duration
+    renderMarkers(vid, dur);
+  };
+
+  // ── TIME UPDATE ───────────────────────────────
+  const onTime = () => {
+    if (!video.duration) return;
+    const pct = video.currentTime / video.duration * 100;
+    document.getElementById('sbFill').style.width = pct + '%';
+    document.getElementById('timeCur').textContent = fmtT(video.currentTime);
+    updatePdfOverlay(vid, video.currentTime);
+  };
+
+  // ── ENDED ────────────────────────────────────
+  const onEnd = () => markWatched();
+
+  video.addEventListener('loadedmetadata', onMeta);
+  video.addEventListener('timeupdate', onTime);
+  video.addEventListener('ended', onEnd);
+
+  activeEvts.push(
+    () => video.removeEventListener('loadedmetadata', onMeta),
+    () => video.removeEventListener('timeupdate', onTime),
+    () => video.removeEventListener('ended', onEnd),
+  );
+
+  // If metadata already available (cached)
+  if (video.readyState >= 1 && video.duration) onMeta();
+
+  // Demo mode: show all PDF buttons at once if no src
+  if (!vid.src && (vid.pdfs||[]).length) {
+    const overlay = document.getElementById('pdfOverlay');
+    overlay.innerHTML = '';
+    vid.pdfs.forEach(pdf => overlay.appendChild(makePdfBtn(pdf, false)));
+  } else {
+    document.getElementById('pdfOverlay').innerHTML = '';
+  }
+}
+
+function clearEvts() {
+  activeEvts.forEach(fn=>fn()); activeEvts=[];
+}
+
+// ══════════════════════════════════════════════
+//  INFO META (with duration badge)
+// ══════════════════════════════════════════════
+function updateInfoMeta(vid, durStr) {
+  const pdfCount = (vid.pdfs||[]).length;
+  const meta = document.getElementById('infoMeta');
+  const durBadge = durStr ? `<span class="duration-badge">⏱ ${durStr}</span>` : '';
+  const pdfBadge = pdfCount ? `<span style="font-size:11px;color:var(--text3)">📎 자료 ${pdfCount}개</span>` : '';
+  meta.innerHTML = [durBadge, pdfBadge].filter(Boolean).join('');
+}
+
+// ══════════════════════════════════════════════
+//  PDF OVERLAY — range-based visibility
+// ══════════════════════════════════════════════
+function updatePdfOverlay(vid, t) {
+  const overlay  = document.getElementById('pdfOverlay');
+  const pdfs     = vid.pdfs || [];
+  const visible  = pdfs.filter(pdf => {
+    const from  = (pdf.showFrom  !== '' && pdf.showFrom  != null) ? Number(pdf.showFrom)  : null;
+    const until = (pdf.showUntil !== '' && pdf.showUntil != null) ? Number(pdf.showUntil) : null;
+    return (from === null || t >= from) && (until === null || t <= until);
+  });
+
+  // Only re-render if set changed (compare by ids)
+  const curIds = [...overlay.querySelectorAll('.pdf-btn')].map(b=>b.dataset.id).join(',');
+  const newIds = visible.map(p=>p.id||p.path).join(',');
+  if (curIds === newIds) return;
+
+  overlay.innerHTML = '';
+  visible.forEach(pdf => overlay.appendChild(makePdfBtn(pdf, true)));
+}
+
+function makePdfBtn(pdf, live) {
+  const btn = document.createElement('div');
+  btn.className = 'pdf-btn';
+  btn.dataset.id = pdf.id || pdf.path;
+  if (!live) btn.style.opacity = '.4';
+  const from  = pdf.showFrom  != null && pdf.showFrom  !== '' ? fmtT(Number(pdf.showFrom))  : '–';
+  const until = pdf.showUntil != null && pdf.showUntil !== '' ? fmtT(Number(pdf.showUntil)) : '–';
+  const rangeLabel = (from !== '–' || until !== '–') ? `${from} ~ ${until}` : '항상 표시';
+  btn.innerHTML = `
+    <div class="pb-icon">📄</div>
+    <div>
+      <div class="pb-name">${pdf.name||'파일'}</div>
+      <div class="pb-label">${pdf.label || rangeLabel}</div>
+    </div>
+  `;
+  btn.onclick = () => openPdfModal(pdf);
+  return btn;
+}
+
+// ══════════════════════════════════════════════
+//  SEEKBAR MARKERS
+// ══════════════════════════════════════════════
+function renderMarkers(vid, dur) {
+  const container = document.getElementById('pdfMarkers');
+  container.innerHTML = '';
+  const COLORS = ['#7c5cfc','#4f8cff','#3dd68c','#ffb347','#ff5f6d','#f06292','#80deea'];
+  (vid.pdfs||[]).forEach((pdf, i) => {
+    const from  = (pdf.showFrom  != null && pdf.showFrom  !== '') ? Number(pdf.showFrom)  : 0;
+    const until = (pdf.showUntil != null && pdf.showUntil !== '') ? Number(pdf.showUntil) : dur;
+    if (from >= until || from > dur) return;
+    const left  = (Math.max(0, from)               / dur * 100).toFixed(2);
+    const width = (Math.min(until, dur) - from) / dur * 100;
+    if (width <= 0) return;
+    const m = document.createElement('div');
+    m.className = 'pdf-marker';
+    m.style.left       = left + '%';
+    m.style.width      = width.toFixed(2) + '%';
+    m.style.background = COLORS[i % COLORS.length];
+    m.title = `${pdf.name}: ${fmtT(from)} ~ ${fmtT(until)}`;
+    container.appendChild(m);
+  });
+}
+
+// ══════════════════════════════════════════════
+//  PDF LIST PANEL
+// ══════════════════════════════════════════════
+function renderPdfList(vid) {
+  const el = document.getElementById('pdfList');
+  const pdfs = vid.pdfs||[];
+  if (!pdfs.length) {
+    el.innerHTML = `<div style="font-size:13px;color:var(--text3);text-align:center;padding:24px 0">첨부 자료가 없습니다.</div>`;
+    return;
+  }
+  el.innerHTML = '';
+  pdfs.forEach(pdf => {
+    const from  = (pdf.showFrom  != null && pdf.showFrom  !== '') ? fmtT(Number(pdf.showFrom))  : '시작';
+    const until = (pdf.showUntil != null && pdf.showUntil !== '') ? fmtT(Number(pdf.showUntil)) : '끝';
+    const card = document.createElement('div');
+    card.className = 'pdf-card';
+    card.innerHTML = `
+      <div class="pc-icon">📄</div>
+      <div class="pc-body">
+        <div class="pc-name">${pdf.name||'파일'}</div>
+        <div class="pc-meta">${pdf.label||pdf.path||''}</div>
+      </div>
+      <div class="pc-range">${from} ~ ${until}</div>
+    `;
+    card.onclick = () => openPdfModal(pdf);
+    el.appendChild(card);
+  });
+}
+
+// ══════════════════════════════════════════════
+//  SEEK
+// ══════════════════════════════════════════════
+const videoEl = document.getElementById('mainVideo');
+function seekClick(e) {
+  if (!videoEl.duration) return;
+  videoEl.currentTime = (e.offsetX / e.currentTarget.offsetWidth) * videoEl.duration;
+}
+
+// ══════════════════════════════════════════════
+//  PDF MODAL
+// ══════════════════════════════════════════════
+function openPdfModal(pdf) {
+  activePdf = pdf;
+  document.getElementById('mTitle').textContent = pdf.name||'파일';
+  document.getElementById('mSub').textContent   = pdf.label||'강의 자료';
+  document.getElementById('mPath').textContent  = pdf.path||'경로 없음';
+  document.getElementById('pdfModal').classList.add('open');
+}
+function closeMo()  { document.getElementById('pdfModal').classList.remove('open'); }
+function doOpen()   {
+  if (!activePdf?.path) { showToast('⚠️ 파일 경로가 없습니다'); return; }
+  closeMo(); window.open(activePdf.path,'_blank'); showToast('📂 열기: '+activePdf.name);
+}
+
+// ══════════════════════════════════════════════
+//  SIDEBAR / TABS / WATCHED / NOTES
+// ══════════════════════════════════════════════
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  document.getElementById('sidebar').classList.toggle('collapsed', !sidebarOpen);
+}
+
+function switchTab(id, el) {
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+}
+
+function markWatched() {
+  if (!currentVid) return;
+  watchedSet.add(currentVid.id);
+  localStorage.setItem(WATCHED_KEY, JSON.stringify([...watchedSet]));
+  const el = document.getElementById('vi-'+currentVid.id);
+  if(el) el.classList.add('watched');
+  showToast('✓ 학습 완료');
+}
+
+function saveNotes() {
+  if (!currentVid) return;
+  notesMap[currentVid.id] = document.getElementById('notesArea').value;
+  localStorage.setItem(NOTES_KEY, JSON.stringify(notesMap));
+}
+document.getElementById('notesArea').addEventListener('input', saveNotes);
+
+// ══════════════════════════════════════════════
+//  SEARCH
+// ══════════════════════════════════════════════
+function filterTree(q) {
+  q = q.toLowerCase().trim();
+  if (!q) { buildTree(data); return; }
+  const filtered = data.map(cat=>({
+    ...cat,
+    subcategories: cat.subcategories.map(sub=>({
+      ...sub, videos: sub.videos.filter(v=>v.title.toLowerCase().includes(q))
+    })).filter(sub=>sub.videos.length)
+  })).filter(cat=>cat.subcategories.length);
+  buildTree(filtered);
+  document.querySelectorAll('.t-cat,.t-sub').forEach(n=>n.classList.add('open'));
+}
+
+// ══════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════
+function fmtT(sec) {
+  const s = Math.floor(sec||0);
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), r = s%60;
+  if(h>0) return `${h}:${p2(m)}:${p2(r)}`;
+  return `${m}:${p2(r)}`;
+}
+function p2(n) { return String(n).padStart(2,'0'); }
+
+let _tt;
+function showToast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+// ── INIT ─────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
